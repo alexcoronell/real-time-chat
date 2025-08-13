@@ -7,8 +7,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 /* Services */
-import { UserService } from '@user/user.service';
 import { ConversationService } from '@conversation/conversation.service';
+import { MessageStatusService } from '@message_status/message-status.service';
+import { UserService } from '@user/user.service';
 
 /* Entities */
 import { Message } from './entities/message.entity';
@@ -22,6 +23,7 @@ export class MessageService {
     @InjectRepository(Message)
     private messagesRepository: Repository<Message>,
     private conversationService: ConversationService,
+    private messageStatusService: MessageStatusService,
     private userService: UserService,
   ) {}
 
@@ -38,6 +40,21 @@ export class MessageService {
       conversation,
       content,
     });
-    return this.messagesRepository.save(newMessage);
+    const savedMessage = await this.messagesRepository.save(newMessage);
+
+    const participants =
+      await this.conversationService.getParticipants(conversationId);
+
+    const recipientIds = participants
+      .filter((p) => p.id !== sender.id)
+      .map((p) => p.id);
+
+    await this.messageStatusService.createMessageStatuses({
+      conversationId,
+      messageId: savedMessage.id,
+      usersId: recipientIds,
+    });
+
+    return savedMessage;
   }
 }

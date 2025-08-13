@@ -8,5 +8,6 @@ import { MessageStatus } from './entities/message-status.entity';
 @Module({
   imports: [TypeOrmModule.forFeature([MessageStatus])],
   providers: [MessageStatusService],
+  exports: [MessageStatusService],
 })
 export class MessageStatusModule {}

@@ -12,6 +12,7 @@ import { UserService } from '@user/user.service';
 
 /* Entities */
 import { Conversation } from './entities/conversation.entity';
+import { User } from '@user/entities/user.entity';
 
 /* DTO's */
 import { CreateConversationDto } from './dtos/create-conversation.dto';
@@ -78,5 +79,20 @@ export class ConversationService {
       relations: ['messages', 'messages.sender'],
     });
     return conversation?.messages || [];
+  }
+
+  async getParticipants(conversationId: number): Promise<User[]> {
+    const conversation = await this.repo.findOne({
+      where: { id: conversationId },
+      relations: ['participants'],
+    });
+
+    if (!conversation) {
+      throw new NotFoundException(
+        `Conversation with ID ${conversationId} not found.`,
+      );
+    }
+
+    return conversation.participants;
   }
 }

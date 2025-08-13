@@ -15,5 +15,5 @@ export class CreateMessageStatusDto {
   @IsNumber()
   @IsNotEmpty()
   @ApiProperty()
-  userId: number;
+  usersId: number[];
 }
