@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { MessageModule } from './message/message.module';
+import { MessageStatusModule } from './message-status/message-status.module';
 
 /* Config */
 import config from './config';
@@ -24,6 +25,7 @@ import config from './config';
     UserModule,
     ConversationModule,
     MessageModule,
+    MessageStatusModule,
   ],
   controllers: [AppController],
   providers: [AppService],

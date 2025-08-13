@@ -23,6 +23,7 @@
       "@conversation/*": ["src/conversation/*"],
       "@database/*": ["src/database/*"],
       "@message/*": ["src/message/*"],
+      "@message_status/*": ["src/message-status/*"],
       "@user/*": ["src/user/*"]
     }
   }

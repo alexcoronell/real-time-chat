@@ -12,6 +12,7 @@ import { Department } from '@user/enums/department.enum';
 
 import { Conversation } from '@conversation/entities/conversation.entity';
 import { Message } from '@message/entities/message.entity';
+import { MessageStatus } from '@message_status/entities/message-status.entity';
 
 @Entity('users')
 export class User {
@@ -40,4 +41,7 @@ export class User {
 
   @OneToMany(() => Conversation, (conversation) => conversation.user)
   conversations: Conversation[];
+
+  @OneToMany(() => MessageStatus, (status) => status.user)
+  statuses: MessageStatus[];
 }

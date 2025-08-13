@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 
 import { Message } from '@message/entities/message.entity';
+import { MessageStatus } from '@message_status/entities/message-status.entity';
 import { User } from '@user/entities/user.entity';
 
 @Entity('conversations')
@@ -31,6 +32,9 @@ export class Conversation {
     default: () => 'CURRENT_TIMESTAMP',
   })
   createdAt: Date;
+
+  @OneToMany(() => MessageStatus, (status) => status.conversation)
+  statuses: MessageStatus[];
 
   @ManyToOne(() => User, (user) => user.conversations)
   user: User;
