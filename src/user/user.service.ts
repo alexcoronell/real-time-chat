@@ -13,7 +13,8 @@ export class UserService {
   ) {}
 
   async findOrCreate(dto: CreateUserDto): Promise<User> {
-    let user = await this.repo.findOneBy(dto);
+    const { nickname } = dto;
+    let user = await this.findOneByNicknameWithConversations(nickname);
     if (!user) {
       user = this.repo.create(dto);
       await this.repo.save(user);
@@ -21,17 +22,31 @@ export class UserService {
     return user;
   }
 
-  async findAllById(ids: number[]) {
+  async findAllById(ids: number[]): Promise<User[]> {
     return await this.repo.find({
       where: { id: In(ids) },
     });
   }
 
-  async findOneByNickname(nickname: string) {
+  async findOneByNickname(nickname: string): Promise<User> {
     const user = await this.repo.findOneBy({ nickname });
     if (!user) {
       throw new NotFoundException(`User with nickname ${nickname} not found.`);
     }
+    return user;
+  }
+
+  async findOneByNicknameWithConversations(
+    nickname: string,
+  ): Promise<User | null> {
+    const user = await this.repo.findOne({
+      where: { nickname },
+      relations: [
+        'conversations',
+        'conversations.messages',
+        'conversations.participants',
+      ],
+    });
     return user;
   }
 }

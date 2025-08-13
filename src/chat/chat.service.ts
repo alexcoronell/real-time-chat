@@ -1,23 +1,39 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 
-import { Client } from '@commons/interfaces/client.interface';
+import { ConversationService } from '@conversation/conversation.service';
+import { MessageService } from '@message/message.service';
+import { UserService } from '@user/user.service';
+
+import { CreateConversationDto } from '@conversation/dtos/create-conversation.dto';
+import { CreateMessageDto } from '@message/dtos/create-message.dto';
 
 @Injectable()
 export class ChatService {
-  private clients: Record<string, Client> = {};
+  constructor(
+    private readonly userService: UserService,
+    private readonly conversationService: ConversationService,
+    private readonly messageService: MessageService,
+  ) {}
 
-  onClientConnected(client: Client) {
-    this.clients[client.id] = client;
+  async findUserConversations(nickname: string) {
+    const user =
+      await this.userService.findOneByNicknameWithConversations(nickname);
+    return user;
   }
 
-  onClientDisconnected(id: string) {
-    delete this.clients[id];
+  async findOrCreateConversation(dto: CreateConversationDto) {
+    return await this.conversationService.findOrCreate(dto);
   }
 
-  getClients() {
-    return Object.values(this.clients);
+  async getConversationMessages(conversationId: number) {
+    return await this.conversationService.getMessages(conversationId);
+  }
+
+  async sendMessage(dto: CreateMessageDto) {
+    return await this.messageService.create(dto);
   }
 }
