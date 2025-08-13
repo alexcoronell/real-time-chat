@@ -19,7 +19,8 @@
     "noFallthroughCasesInSwitch": false,
     "paths": {
       "@chat/*": ["src/chat/*"],
-      "@commons/*": ["src/commons/*"]
+      "@commons/*": ["src/commons/*"],
+      "@database/*": ["src/database/*"]
     }
   }
 }
