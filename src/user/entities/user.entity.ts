@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Entity,
@@ -6,6 +7,8 @@ import {
   Column,
   OneToMany,
 } from 'typeorm';
+
+import { Department } from '@user/enums/department.enum';
 
 import { Message } from '@message/entities/message.entity';
 
@@ -16,6 +19,13 @@ export class User {
 
   @Column({ type: 'varchar', unique: true })
   nickname: string;
+
+  @Column({
+    type: 'enum',
+    enum: Department,
+    nullable: true, // Opcional: para permitir usuarios sin departamento
+  })
+  department: Department;
 
   @CreateDateColumn({
     name: 'created_at',
