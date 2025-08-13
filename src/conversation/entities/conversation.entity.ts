@@ -3,19 +3,25 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  Column,
+  ManyToMany,
+  JoinTable,
   OneToMany,
 } from 'typeorm';
 
 import { Message } from '@message/entities/message.entity';
+import { User } from '@user/entities/user.entity';
 
-@Entity('users')
-export class User {
+@Entity('conversations')
+export class Conversation {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', unique: true })
-  nickname: string;
+  @ManyToMany(() => User)
+  @JoinTable()
+  participants: User[];
+
+  @OneToMany(() => Message, (message) => message.conversation)
+  messages: Message[];
 
   @CreateDateColumn({
     name: 'created_at',
@@ -23,7 +29,4 @@ export class User {
     default: () => 'CURRENT_TIMESTAMP',
   })
   createdAt: Date;
-
-  @OneToMany(() => Message, (message) => message.sender)
-  messages: Message[];
 }

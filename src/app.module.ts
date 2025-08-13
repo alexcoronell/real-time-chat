@@ -7,6 +7,8 @@ import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
+import { ConversationModule } from './conversation/conversation.module';
+import { MessageModule } from './message/message.module';
 
 /* Config */
 import config from './config';
@@ -20,6 +22,8 @@ import config from './config';
     ChatModule,
     DatabaseModule,
     UserModule,
+    ConversationModule,
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [AppService],
