@@ -25,8 +25,7 @@ config({
 export default registerAs('config', () => {
   return {
     supabase: {
-      url: process.env.SUPABASE_PROJECT_URL,
-      apiKey: process.env.SUPABASE_API_KEY,
+      url: process.env.NEON_URL,
     },
     apikey: process.env.API_KEY,
   };

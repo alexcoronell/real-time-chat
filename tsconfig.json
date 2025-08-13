@@ -20,7 +20,8 @@
     "paths": {
       "@chat/*": ["src/chat/*"],
       "@commons/*": ["src/commons/*"],
-      "@database/*": ["src/database/*"]
+      "@database/*": ["src/database/*"],
+      "@user/*": ["src/user/*"]
     }
   }
 }

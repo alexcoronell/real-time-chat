@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { Module, Global } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
@@ -10,11 +12,10 @@ import config from '../config';
     TypeOrmModule.forRootAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
-        const { url, apiKey } = configService.supabase;
+        const { url } = configService.supabase;
         return {
           type: 'postgres',
           url,
-          apiKey,
           synchronize: false,
           autoLoadEntities: true,
         };
