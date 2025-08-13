@@ -5,19 +5,23 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 
+/* Services */
+import { UserService } from '@user/user.service';
+
+/* Entities */
 import { Conversation } from './entities/conversation.entity';
-import { User } from '@user/entities/user.entity';
+
+/* DTO's */
 import { CreateConversationDto } from './dtos/create-conversation.dto';
 
 @Injectable()
 export class ConversationService {
   constructor(
     @InjectRepository(Conversation)
-    private conversationsRepository: Repository<Conversation>,
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
+    private repo: Repository<Conversation>,
+    private userService: UserService,
   ) {}
 
   async findOrCreate(dto: CreateConversationDto): Promise<Conversation> {
@@ -29,9 +33,7 @@ export class ConversationService {
     }
 
     // Buscar los usuarios por sus IDs
-    const participants = await this.usersRepository.find({
-      where: { id: In(participantIds) },
-    });
+    const participants = await this.userService.findAllById(participantIds);
 
     // Validar que se encontraron todos los usuarios
     if (participants.length !== participantIds.length) {
@@ -41,7 +43,7 @@ export class ConversationService {
     // La lógica de la conversación grupal se mantiene igual
     const sortedParticipantIds = participants.map((user) => user.id).sort();
 
-    const conversation = await this.conversationsRepository
+    const conversation = await this.repo
       .createQueryBuilder('conversation')
       .leftJoin('conversation.participants', 'user')
       .where('user.id IN (:...participantIds)', {
@@ -52,19 +54,27 @@ export class ConversationService {
       .getOne();
 
     if (!conversation) {
-      const newConversation = this.conversationsRepository.create({
+      const newConversation = this.repo.create({
         participants,
       });
-      await this.conversationsRepository.save(newConversation);
+      await this.repo.save(newConversation);
       return newConversation;
     }
 
     return conversation;
   }
 
-  async getMessages(conversationId: number) {
-    const conversation = await this.conversationsRepository.findOne({
-      where: { id: conversationId },
+  async findOneById(id: number) {
+    const conversation = await this.repo.findOneBy({ id });
+    if (!conversation) {
+      throw new NotFoundException(`Conversation with ID ${id} not found.`);
+    }
+    return conversation;
+  }
+
+  async getMessages(id: number) {
+    const conversation = await this.repo.findOne({
+      where: { id },
       relations: ['messages', 'messages.sender'],
     });
     return conversation?.messages || [];
