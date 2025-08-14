@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import 'reflect-metadata';
 
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ChatModule } from './chat/chat.module';
 import { DatabaseModule } from './database/database.module';
 import { UserModule } from './user/user.module';
@@ -27,7 +25,5 @@ import config from './config';
     MessageModule,
     MessageStatusModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
