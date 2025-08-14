@@ -15,8 +15,14 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
-import { UserService } from '@user/user.service';
 import { User } from '@user/entities/user.entity';
+
+/* Services */
+import { ConversationService } from '@conversation/conversation.service';
+import { UserService } from '@user/user.service';
+
+/* DTOS */
+import { CreateConversationDto } from '@conversation/dtos/create-conversation.dto';
 
 @WebSocketGateway({
   cors: '*',
@@ -29,7 +35,10 @@ export class ChatGateway
   @WebSocketServer()
   public server: Server;
 
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private conversationService: ConversationService,
+  ) {}
 
   private connectedUsers = new Map<
     string,
@@ -456,4 +465,56 @@ export class ChatGateway
     this.updateLastSeen(client.id);
     console.log(`💓 Heartbeat response recibido de ${client.id}`);
   }
+
+  /************************************************************************************************************************/
+  /************************************************* CONVERSATION METHODS *************************************************/
+  /************************************************************************************************************************/
+  @SubscribeMessage('get_conversations')
+  async handleGetConversations(
+    @MessageBody() data: { userId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { userId } = data;
+      console.log(
+        `💬 Solicitud de conversaciones para el usuario ID: ${userId}`,
+      );
+
+      if (!userId) {
+        // Enviar un mensaje de error al cliente si falta el ID
+        client.emit('conversations_list', {
+          success: false,
+          error: 'User ID is missing',
+        });
+        return;
+      }
+
+      // Llamar al servicio para obtener las conversaciones
+      const conversations =
+        await this.conversationService.findConversationsByParticipantId(userId);
+
+      // 🚨 Emitimos la respuesta directamente al cliente que hizo la petición.
+      // Ya no se devuelve un valor, lo que evita la serialización automática.
+      client.emit('conversations_list', { success: true, conversations });
+    } catch (error) {
+      console.error('❌ Error al obtener las conversaciones:', error);
+      client.emit('conversations_list', {
+        success: false,
+        error: 'Internal server error',
+      });
+    }
+  }
+
+  // @SubscribeMessage('check_or_create_conversation')
+  // async handleCheckOrCreateConversation(
+  //   @MessageBody() data: CreateConversationDto,
+  // ) {
+  //   try {
+  //     const conversation = await this.conversationService.findOrCreate(data);
+  //     return { success: true, conversation };
+  //   } catch (error) {
+  //     console.error(`❌ Error al registrar chat:`, error);
+  //     return { success: false, error: error.message };
+  //   }
+  // }
 }

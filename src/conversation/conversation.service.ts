@@ -73,6 +73,17 @@ export class ConversationService {
     return conversation;
   }
 
+  async findConversationsByParticipantId(
+    participantId: number,
+  ): Promise<Conversation[]> {
+    const conversations = await this.repo
+      .createQueryBuilder('conversation')
+      .innerJoin('conversation.participants', 'user')
+      .where('user.id = :participantId', { participantId })
+      .getMany();
+    return conversations;
+  }
+
   async getMessages(id: number) {
     const conversation = await this.repo.findOne({
       where: { id },
