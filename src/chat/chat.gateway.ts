@@ -22,11 +22,14 @@ import { ConversationService } from '@conversation/conversation.service';
 import { UserService } from '@user/user.service';
 
 /* DTOS */
-import { CreateConversationDto } from '@conversation/dtos/create-conversation.dto';
+//import { CreateConversationDto } from '@conversation/dtos/create-conversation.dto';
 
 @WebSocketGateway({
   cors: '*',
   credentials: true,
+  // ✅ Configuración optimizada para tiempo real
+  pingTimeout: 60000,
+  pingInterval: 25000,
 })
 @UsePipes(new ValidationPipe())
 export class ChatGateway
@@ -56,23 +59,17 @@ export class ChatGateway
     this.usersByNickname.clear();
     this.heartbeatIntervals.clear();
 
-    // 🔧 Programar limpieza periódica de conexiones muertas
     this.scheduleCleanup();
-
-    // 🔧 Programar verificación de heartbeats
     this.scheduleHeartbeatCheck();
   }
 
   handleConnection(client: Socket) {
     console.log(`🔗 Cliente conectado: ${client.id}`);
 
-    // 🔧 Limpiar posibles registros antiguos de este socket ID
     this.cleanupSocketId(client.id);
 
-    // 🔧 Configurar heartbeat para este cliente
     this.setupHeartbeat(client);
 
-    // 🔧 Agregar listeners para detectar desconexiones
     client.on('disconnect', (reason) => {
       console.log(
         `🔌 Disconnect event - Socket: ${client.id}, Reason: ${reason}`,
@@ -80,13 +77,11 @@ export class ChatGateway
       this.handleActualDisconnect(client);
     });
 
-    // 🔧 Listener para errores de conexión
     client.on('error', (error) => {
       console.error(`❌ Socket error - ${client.id}:`, error);
       this.handleActualDisconnect(client);
     });
 
-    // 🔧 Listener para respuesta de heartbeat
     client.on('heartbeat_response', () => {
       this.updateLastSeen(client.id);
     });
@@ -94,13 +89,11 @@ export class ChatGateway
 
   handleDisconnect(client: Socket) {
     console.log(`🔌 Cliente desconectándose: ${client.id}`);
-    // Solo registrar, la limpieza real se hace en handleActualDisconnect
   }
 
   private handleActualDisconnect(client: Socket) {
     console.log(`🚪 Limpiando desconexión: ${client.id}`);
 
-    // 🔧 Limpiar heartbeat
     this.clearHeartbeat(client.id);
 
     const disconnectedUser = this.connectedUsers.get(client.id);
@@ -108,7 +101,6 @@ export class ChatGateway
     if (disconnectedUser) {
       const nickname = disconnectedUser.user.nickname;
 
-      // 🔧 Verificar que este socket sea realmente el actual para este nickname
       const currentSocketId = this.usersByNickname.get(nickname);
       if (currentSocketId === client.id) {
         this.usersByNickname.delete(nickname);
@@ -116,7 +108,6 @@ export class ChatGateway
 
       this.connectedUsers.delete(client.id);
 
-      // 🔧 Asegurar que el socket salga de todos los rooms
       client.leave(this.ONLINE_USERS_CHAT);
 
       this.broadcastToOnlineChat('user_disconnected', {
@@ -129,7 +120,6 @@ export class ChatGateway
 
       console.log(`✅ Usuario ${nickname} desconectado y limpiado`);
     } else {
-      // Limpiar por si acaso
       this.connectedUsers.delete(client.id);
     }
   }
@@ -150,7 +140,6 @@ export class ChatGateway
         `👤 Registrando usuario: ${nickname} con socket: ${client.id}`,
       );
 
-      // 🔧 LIMPIEZA COMPLETA ANTES DE REGISTRAR
       this.cleanupUserByNickname(nickname);
       this.cleanupSocketId(client.id);
 
@@ -158,7 +147,6 @@ export class ChatGateway
 
       await client.join(this.ONLINE_USERS_CHAT);
 
-      // 🔧 Registrar el nuevo usuario
       this.connectedUsers.set(client.id, {
         socketId: client.id,
         user,
@@ -186,8 +174,6 @@ export class ChatGateway
     }
   }
 
-  // 🔧 MÉTODOS DE LIMPIEZA
-
   private cleanupUserByNickname(nickname: string) {
     const existingSocketId = this.usersByNickname.get(nickname);
 
@@ -196,16 +182,13 @@ export class ChatGateway
         `🧹 Limpiando conexión anterior para ${nickname}: ${existingSocketId}`,
       );
 
-      // Verificar si el socket aún existe
       const existingSocket = this.server.sockets.sockets.get(existingSocketId);
 
       if (existingSocket) {
-        // Socket existe, desconectarlo
         existingSocket.leave(this.ONLINE_USERS_CHAT);
         existingSocket.disconnect(true);
       }
 
-      // Limpiar registros
       this.connectedUsers.delete(existingSocketId);
       this.usersByNickname.delete(nickname);
     }
@@ -219,7 +202,6 @@ export class ChatGateway
 
       const nickname = existingUser.user.nickname;
 
-      // Solo eliminar del mapa de nicknames si este socket era el actual
       if (this.usersByNickname.get(nickname) === socketId) {
         this.usersByNickname.delete(nickname);
       }
@@ -255,7 +237,6 @@ export class ChatGateway
       }
     }
 
-    // Limpiar sockets desconectados
     for (const socketId of socketsToRemove) {
       const userData = this.connectedUsers.get(socketId);
       if (userData) {
@@ -272,7 +253,6 @@ export class ChatGateway
   }
 
   private scheduleCleanup() {
-    // 🔧 Limpieza cada 30 segundos
     setInterval(() => {
       const beforeCount = this.connectedUsers.size;
       this.getValidConnectedUsers();
@@ -287,8 +267,6 @@ export class ChatGateway
     }, 30000);
   }
 
-  // 🔧 SISTEMA DE HEARTBEAT PARA DETECTAR DESCONEXIONES
-
   private setupHeartbeat(client: Socket) {
     console.log(`💓 Configurando heartbeat para ${client.id}`);
 
@@ -296,10 +274,8 @@ export class ChatGateway
       if (client.connected) {
         console.log(`💓 Enviando heartbeat a ${client.id}`);
 
-        // 🔧 Usar emit en lugar de ping
         client.emit('heartbeat_request', { timestamp: Date.now() });
 
-        // Verificar si no ha respondido en mucho tiempo
         const userData = this.connectedUsers.get(client.id);
         if (userData) {
           const timeSinceLastSeen = Date.now() - userData.lastSeen.getTime();
@@ -313,7 +289,7 @@ export class ChatGateway
         }
       } else {
         console.log(
-          `💔 Cliente ${client.id} ya no está conectado, limpiando heartbeat`,
+          `💓 Cliente ${client.id} ya no está conectado, limpiando heartbeat`,
         );
         this.clearHeartbeat(client.id);
       }
@@ -327,7 +303,7 @@ export class ChatGateway
     if (interval) {
       clearInterval(interval);
       this.heartbeatIntervals.delete(socketId);
-      console.log(`💔 Heartbeat limpiado para ${socketId}`);
+      console.log(`💓 Heartbeat limpiado para ${socketId}`);
     }
   }
 
@@ -347,12 +323,10 @@ export class ChatGateway
       socket.disconnect(true);
     }
 
-    // Limpiar manualmente por si el evento disconnect no se dispara
     this.handleActualDisconnect({ id: socketId } as Socket);
   }
 
   private scheduleHeartbeatCheck() {
-    // 🔧 Verificación cada 20 segundos para usuarios sin actividad
     setInterval(() => {
       const now = Date.now();
       const socketsToDisconnect: string[] = [];
@@ -374,10 +348,8 @@ export class ChatGateway
           this.forceDisconnect(socketId, 'inactive_timeout');
         }
       }
-    }, 20000); // Cada 20 segundos
+    }, 20000);
   }
-
-  // 🔧 MÉTODOS DE BROADCAST ACTUALIZADOS
 
   private broadcastToOnlineChat(event: string, data: any) {
     this.server.to(this.ONLINE_USERS_CHAT).emit(event, data);
@@ -393,7 +365,6 @@ export class ChatGateway
       connectedAt: conn.connectedAt,
     }));
 
-    // 🔧 VERIFICACIÓN ADICIONAL: Eliminar duplicados por nickname (solo por seguridad)
     const uniqueUsers = usersList.filter(
       (user, index, array) =>
         array.findIndex((u) => u.nickname === user.nickname) === index,
@@ -418,7 +389,6 @@ export class ChatGateway
       connectedAt: conn.connectedAt,
     }));
 
-    // Filtrar duplicados por seguridad
     const uniqueUsers = usersList.filter(
       (user, index, array) =>
         array.findIndex((u) => u.nickname === user.nickname) === index,
@@ -430,7 +400,6 @@ export class ChatGateway
     });
   }
 
-  // 🔧 MÉTODO PARA DEBUG (opcional)
   @SubscribeMessage('debug_connections')
   handleDebugConnections(@ConnectedSocket() client: Socket) {
     if (process.env.NODE_ENV === 'development') {
@@ -452,14 +421,12 @@ export class ChatGateway
     }
   }
 
-  // 🔧 MENSAJE PARA HEARTBEAT MANUAL DESDE EL CLIENTE
   @SubscribeMessage('heartbeat')
   handleHeartbeat(@ConnectedSocket() client: Socket) {
     this.updateLastSeen(client.id);
     client.emit('heartbeat_ack', { timestamp: Date.now() });
   }
 
-  // 🔧 RESPUESTA A HEARTBEAT REQUEST
   @SubscribeMessage('heartbeat_response')
   handleHeartbeatResponse(@ConnectedSocket() client: Socket) {
     this.updateLastSeen(client.id);
@@ -469,6 +436,21 @@ export class ChatGateway
   /************************************************************************************************************************/
   /************************************************* CONVERSATION METHODS *************************************************/
   /************************************************************************************************************************/
+
+  // ✅ Método optimizado para encontrar sockets de usuarios
+  private findSocketsByUserId(userId: number): string[] {
+    const sockets: string[] = [];
+    for (const [socketId, userData] of this.connectedUsers.entries()) {
+      if (userData.user.id === userId) {
+        const socket = this.server.sockets.sockets.get(socketId);
+        if (socket && socket.connected) {
+          sockets.push(socketId);
+        }
+      }
+    }
+    return sockets;
+  }
+
   @SubscribeMessage('get_conversations')
   async handleGetConversations(
     @MessageBody() data: { userId: number },
@@ -476,12 +458,8 @@ export class ChatGateway
   ) {
     try {
       const { userId } = data;
-      console.log(
-        `💬 Solicitud de conversaciones para el usuario ID: ${userId}`,
-      );
 
       if (!userId) {
-        // Enviar un mensaje de error al cliente si falta el ID
         client.emit('conversations_list', {
           success: false,
           error: 'User ID is missing',
@@ -489,32 +467,176 @@ export class ChatGateway
         return;
       }
 
-      // Llamar al servicio para obtener las conversaciones
+      console.log(`📋 Obteniendo conversaciones para usuario: ${userId}`);
+
       const conversations =
         await this.conversationService.findConversationsByParticipantId(userId);
 
-      // 🚨 Emitimos la respuesta directamente al cliente que hizo la petición.
-      // Ya no se devuelve un valor, lo que evita la serialización automática.
-      client.emit('conversations_list', { success: true, conversations });
+      console.log(`✅ Encontradas ${conversations.length} conversaciones`);
+
+      // ✅ Respuesta inmediata sin delay
+      client.emit('conversations_list', {
+        success: true,
+        conversations,
+        timestamp: new Date(),
+      });
     } catch (error) {
-      console.error('❌ Error al obtener las conversaciones:', error);
+      console.error(`❌ Error al obtener conversaciones:`, error);
       client.emit('conversations_list', {
         success: false,
-        error: 'Internal server error',
+        error: error.message,
       });
     }
   }
 
-  // @SubscribeMessage('check_or_create_conversation')
-  // async handleCheckOrCreateConversation(
-  //   @MessageBody() data: CreateConversationDto,
-  // ) {
-  //   try {
-  //     const conversation = await this.conversationService.findOrCreate(data);
-  //     return { success: true, conversation };
-  //   } catch (error) {
-  //     console.error(`❌ Error al registrar chat:`, error);
-  //     return { success: false, error: error.message };
-  //   }
-  // }
+  @SubscribeMessage('check_or_create_conversation')
+  async handleCheckOrCreateConversation(
+    @MessageBody() data: { participantIds: number[] },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { participantIds } = data;
+
+      // ✅ VALIDACIÓN MEJORADA
+      if (!participantIds || !Array.isArray(participantIds)) {
+        client.emit('conversation_result', {
+          success: false,
+          error: 'participantIds debe ser un array válido',
+        });
+        return;
+      }
+
+      if (participantIds.length !== 2) {
+        client.emit('conversation_result', {
+          success: false,
+          error: 'La conversación debe tener exactamente 2 participantes',
+        });
+        return;
+      }
+
+      const [userId1, userId2] = participantIds;
+      if (userId1 === userId2) {
+        client.emit('conversation_result', {
+          success: false,
+          error: 'No puedes crear una conversación contigo mismo',
+        });
+        return;
+      }
+
+      console.log(
+        `💬 Solicitud de conversación entre: ${userId1} y ${userId2}`,
+      );
+
+      const conversation =
+        await this.conversationService.findOrCreate(participantIds);
+      const conversationRoom = `conversation-${conversation.id}`;
+
+      console.log(`🏠 Room configurado: ${conversationRoom}`);
+
+      // ✅ 1. RESPUESTA INMEDIATA al cliente que hizo la petición
+      client.emit('conversation_result', {
+        success: true,
+        conversation,
+        timestamp: new Date(),
+      });
+
+      console.log(`✅ conversation_result enviado a ${client.id}`);
+
+      // ✅ 2. Unir a todos los participantes al room
+      const joinPromises = participantIds.map(async (participantId) => {
+        const socketIds = this.findSocketsByUserId(participantId);
+
+        for (const socketId of socketIds) {
+          const participantSocket = this.server.sockets.sockets.get(socketId);
+          if (participantSocket && participantSocket.connected) {
+            await participantSocket.join(conversationRoom);
+            console.log(`✅ Socket ${socketId} unido a ${conversationRoom}`);
+          }
+        }
+      });
+
+      await Promise.all(joinPromises);
+
+      // ✅ 3. Emitir actualización a TODOS los participantes (incluye al que la creó)
+      this.server.to(conversationRoom).emit('conversations_updated', {
+        success: true,
+        conversation: conversation,
+        timestamp: new Date(),
+      });
+
+      console.log(
+        `📡 conversations_updated enviado a room ${conversationRoom}`,
+      );
+
+      // ✅ 4. ADICIONAL: Enviar notificación individual a cada participante
+      for (const participantId of participantIds) {
+        const socketIds = this.findSocketsByUserId(participantId);
+        for (const socketId of socketIds) {
+          const socket = this.server.sockets.sockets.get(socketId);
+          if (socket && socket.connected) {
+            // Solo enviar si NO es el cliente que hizo la petición (ya recibió conversation_result)
+            if (socket.id !== client.id) {
+              socket.emit('conversations_updated', {
+                success: true,
+                conversation,
+                timestamp: new Date(),
+              });
+              console.log(
+                `📨 conversations_updated enviado individualmente a ${socket.id}`,
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error al crear/buscar conversación:`, error);
+      client.emit('conversation_result', {
+        success: false,
+        error: error.message,
+      });
+    }
+  }
+
+  @SubscribeMessage('join_conversation')
+  async handleJoinConversation(
+    @MessageBody() data: { conversationId: number; userId: number },
+    @ConnectedSocket() client: Socket,
+  ) {
+    try {
+      const { conversationId, userId } = data;
+
+      // ✅ Validar que el usuario es participante de la conversación
+      const isParticipant = await this.conversationService.validateParticipants(
+        conversationId,
+        userId,
+      );
+
+      if (!isParticipant) {
+        client.emit('join_conversation_result', {
+          success: false,
+          error: 'No tienes permisos para unirte a esta conversación',
+        });
+        return;
+      }
+
+      const conversationRoom = `conversation-${conversationId}`;
+      await client.join(conversationRoom);
+
+      console.log(
+        `✅ Usuario ${userId} se unió a conversación ${conversationId}`,
+      );
+
+      client.emit('join_conversation_result', {
+        success: true,
+        conversationId,
+        room: conversationRoom,
+      });
+    } catch (error) {
+      console.error(`❌ Error al unirse a conversación:`, error);
+      client.emit('join_conversation_result', {
+        success: false,
+        error: error.message,
+      });
+    }
+  }
 }

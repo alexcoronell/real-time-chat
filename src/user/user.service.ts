@@ -49,4 +49,8 @@ export class UserService {
     });
     return user;
   }
+
+  async findByIds(ids: number[]): Promise<User[]> {
+    return this.repo.findBy({ id: In(ids) });
+  }
 }
