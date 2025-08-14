@@ -143,7 +143,9 @@ export class ChatGateway
       this.cleanupUserByNickname(nickname);
       this.cleanupSocketId(client.id);
 
-      const user: User = await this.userService.findOrCreate({ nickname });
+      const user: User = await this.userService.findOrCreate({
+        nickname: nickname.toLowerCase(),
+      });
 
       await client.join(this.ONLINE_USERS_CHAT);
 
