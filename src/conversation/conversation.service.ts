@@ -29,7 +29,7 @@ export class ConversationService {
   async findOneById(id: number) {
     const conversation = await this.repo.findOne({
       where: { id },
-      relations: ['participants', 'messages', 'messages.sender']
+      relations: ['participants', 'messages', 'messages.sender'],
     });
 
     if (!conversation) {
@@ -39,7 +39,6 @@ export class ConversationService {
   }
 
   async findOrCreate(participantIds: number[]): Promise<Conversation> {
-    // ✅ VALIDACIÓN ESTRICTA: Solo 2 participantes
     if (!participantIds || participantIds.length !== 2) {
       throw new BadRequestException(
         'La conversación debe tener exactamente dos participantes',
@@ -55,10 +54,6 @@ export class ConversationService {
     }
 
     const [userId1, userId2] = uniqueIds.sort(); // Ordenar para consistencia
-
-    console.log(
-      `🔍 Buscando conversación entre usuarios: ${userId1} y ${userId2}`,
-    );
 
     // ✅ BÚSQUEDA MEJORADA: Buscar conversación exacta entre 2 usuarios
     const existingConversation = await this.repo
@@ -85,19 +80,6 @@ export class ConversationService {
 
     // ✅ Si existe, validar y retornar con relaciones completas
     if (existingConversation) {
-      console.log(
-        '✅ Conversación existente encontrada:',
-        existingConversation.id,
-      );
-      console.log(
-        '👥 Participantes cargados:',
-        existingConversation.participants?.length,
-      );
-      console.log(
-        '💬 Mensajes cargados:',
-        existingConversation.messages?.length,
-      );
-
       // DEBUG: Verificar que los participantes estén correctamente cargados
       if (existingConversation.participants) {
         existingConversation.participants.forEach((participant, index) => {
@@ -111,24 +93,12 @@ export class ConversationService {
       return existingConversation;
     }
 
-    // ✅ VALIDAR que los usuarios existen antes de crear
-    console.log('🔍 Validando usuarios antes de crear conversación...');
     const users = await this.userService.findAllById([userId1, userId2]);
-    console.log('👥 Usuarios encontrados:', users.length);
 
     if (users.length !== 2) {
       throw new NotFoundException('Uno o más usuarios no encontrados');
     }
 
-    users.forEach((user, index) => {
-      console.log(`👤 Usuario ${index + 1} para nueva conversación:`, {
-        id: user.id,
-        nickname: user.nickname,
-      });
-    });
-
-    // ✅ Crear nueva conversación
-    console.log('💬 Creando nueva conversación...');
     const newConversation = this.repo.create({
       participants: users,
     });
@@ -150,22 +120,6 @@ export class ConversationService {
     if (!conversation) {
       throw new NotFoundException('Error al recuperar la conversación creada');
     }
-
-    console.log('✅ Nueva conversación creada y cargada:', conversation.id);
-    console.log(
-      '👥 Participantes en nueva conversación:',
-      conversation.participants?.length,
-    );
-
-    if (conversation.participants) {
-      conversation.participants.forEach((participant, index) => {
-        console.log(`👤 Participante ${index + 1}:`, {
-          id: participant.id,
-          nickname: participant.nickname,
-        });
-      });
-    }
-
     return conversation;
   }
 

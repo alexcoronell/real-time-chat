@@ -498,104 +498,15 @@ export class ChatGateway
   ) {
     try {
       const { participantIds } = data;
-
-      // ✅ VALIDACIÓN MEJORADA
-      if (!participantIds || !Array.isArray(participantIds)) {
-        client.emit('conversation_result', {
-          success: false,
-          error: 'participantIds debe ser un array válido',
-        });
-        return;
-      }
-
-      if (participantIds.length !== 2) {
-        client.emit('conversation_result', {
-          success: false,
-          error: 'La conversación debe tener exactamente 2 participantes',
-        });
-        return;
-      }
-
-      const [userId1, userId2] = participantIds;
-      if (userId1 === userId2) {
-        client.emit('conversation_result', {
-          success: false,
-          error: 'No puedes crear una conversación contigo mismo',
-        });
-        return;
-      }
-
-      console.log(
-        `💬 Solicitud de conversación entre: ${userId1} y ${userId2}`,
-      );
-
       const conversation =
         await this.conversationService.findOrCreate(participantIds);
-      const conversationRoom = `conversation-${conversation.id}`;
-
-      console.log(`🏠 Room configurado: ${conversationRoom}`);
-
-      // ✅ 1. RESPUESTA INMEDIATA al cliente que hizo la petición
-      client.emit('conversation_result', {
+      console.log(conversation);
+      client.emit('join_conversation_result', {
         success: true,
         conversation,
-        timestamp: new Date(),
       });
-
-      console.log(`✅ conversation_result enviado a ${client.id}`);
-
-      // ✅ 2. Unir a todos los participantes al room
-      const joinPromises = participantIds.map(async (participantId) => {
-        const socketIds = this.findSocketsByUserId(participantId);
-
-        for (const socketId of socketIds) {
-          const participantSocket = this.server.sockets.sockets.get(socketId);
-          if (participantSocket && participantSocket.connected) {
-            await participantSocket.join(conversationRoom);
-            console.log(`✅ Socket ${socketId} unido a ${conversationRoom}`);
-          }
-        }
-      });
-
-      await Promise.all(joinPromises);
-
-      // ✅ 3. Emitir actualización a TODOS los participantes (incluye al que la creó)
-      this.server.to(conversationRoom).emit('conversations_updated', {
-        success: true,
-        conversation: conversation,
-        timestamp: new Date(),
-      });
-
-      console.log(
-        `📡 conversations_updated enviado a room ${conversationRoom}`,
-      );
-
-      // ✅ 4. ADICIONAL: Enviar notificación individual a cada participante
-      for (const participantId of participantIds) {
-        const socketIds = this.findSocketsByUserId(participantId);
-        for (const socketId of socketIds) {
-          const socket = this.server.sockets.sockets.get(socketId);
-          if (socket && socket.connected) {
-            // Solo enviar si NO es el cliente que hizo la petición (ya recibió conversation_result)
-            if (socket.id !== client.id) {
-              socket.emit('conversations_updated', {
-                success: true,
-                conversation,
-                timestamp: new Date(),
-              });
-              console.log(
-                `📨 conversations_updated enviado individualmente a ${socket.id}`,
-              );
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error(`❌ Error al crear/buscar conversación:`, error);
-      client.emit('conversation_result', {
-        success: false,
-        error: error.message,
-      });
+    } catch (e) {
+      console.error(e);
     }
   }
 
